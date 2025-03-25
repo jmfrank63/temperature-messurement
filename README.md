@@ -1,4 +1,3 @@
-//// filepath: /home/johannes/Projects/C++/temperature-messurement/README.md
 # Temperature Measurement Project
 
 This project demonstrates how to capture a sequence of temperature measurements, store them in a ring buffer, and track the minimum and maximum temperatures in a naive way (updating on write and rescanning the buffer when needed).
