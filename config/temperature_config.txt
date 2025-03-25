@@ -1,0 +1,6 @@
+baseOffset 15.0
+amplitude 10.0
+daysInYear 365.0
+minTemp -20.0
+maxTemp 50.0
+driftFactor 0.1
