@@ -1,17 +1,20 @@
 # Temperature Measurement Project
 
-This project demonstrates how to capture a sequence of temperature measurements, store them in a ring buffer, and track the minimum and maximum temperatures in a naive way (updating on write and rescanning the buffer when needed).
+This project demonstrates how to capture a sequence of temperature measurements, store them in a ring buffer, and track the minimum and maximum temperatures. Two min/max tracking implementations are provided:
+- A **naive** method that updates min/max on each write and rescans the buffer on overwrite.
+- A **fast** deque-based approach that maintains auxiliary deques for constant-amortized time lookups.
 
 ## Features
 
 - **Configuration File:**
-  Uses a plain text configuration file (`config/temperature_config.txt`) for parameters such as:
+  The project uses a plain text configuration file (`config/temperature_config.txt`) for various parameters:
   - `baseOffset` (seasonal base temperature)
   - `amplitude` (seasonal temperature swing)
   - `daysInYear` (used for computing the seasonal sine curve)
   - `minTemp` / `maxTemp` (allowed temperature limits)
   - `driftFactor` (how strongly temperatures are pulled toward the seasonal base)
   - `bufferSize` (the number of measurements to retain)
+  - `simulationValues` (the number of temperature measurements to simulate)
 
   Example `temperature_config.txt`:
   ```
@@ -21,27 +24,29 @@ This project demonstrates how to capture a sequence of temperature measurements,
   minTemp -20.0
   maxTemp 50.0
   driftFactor 0.1
-  bufferSize 100
+  bufferSize 10
+  simulationValues 20
   ```
 
-- **Ring Buffer:**
-  Implemented as a templated container which supports storing any data type (doubles in production). When full, new writes will automatically overwrite the oldest data. Additionally, the ring buffer exposes the next overwrite candidate via `getOverwriteCandidate()`.
+- **Default Parameters:**
+  Default values for configuration parameters (including the default configuration file path and buffer implementation) are centralized in `defaults.h`. For example, the default config file is set relative to the executable (e.g., `../share/temperature_measurement/config/temperature_config.txt`), and the default buffer implementation is the naive approach.
 
-- **Temperature Buffer:**
-  A wrapper around the ring buffer that tracks minimum and maximum temperatures.
-  - **On push:** The new temperature is added, and if the buffer is not yet full, the min and max are updated directly.
-  - **On overwrite:** If the value being overwritten equals the current min or max, the entire buffer is rescanned to determine new extremes.
+- **Buffer Implementations:**
+  - **Naive Implementation:**
+    Uses a TemperatureBuffer that updates min/max on each write and rescans the buffer when the overwritten element is the current extreme.
 
-- **Testing:**
-  GoogleTest tests cover:
-  - Basic functionality of the RingBuffer (for both `int` and `double` data types).
-  - All “edge case” scenarios: empty buffer, partial fill, overflow (multiple wraps), single-element buffer, and repeated values.
-  - TemperatureBuffer tests verify that min and max tracking work correctly even when overwriting the min or max value, when all values are equal, and for a mix of negative and positive temperatures.
+  - **Fast Implementation:**
+    Uses a TemperatureBufferDeque that maintains two deques (for minimum and maximum) so that each update is done in amortized O(1) time.
+
+- **Command Line Parameters:**
+  In addition to configuration file parameters, you can control the program behavior via command-line options:
+  - **`--config <path>` or `-c <path>`**: Overrides the default configuration file location.
+  - **`--fast` or `-f`**: Uses the fast (deque-based) min/max tracking implementation.
+  - **`--naive` or `-n`**: Uses the naive min/max tracking implementation.
 
 ## Build and Run
 
 ### Requirements
-
 - CMake 3.10 or later
 - clang++ compiler
 - Valgrind (optional, for memory checking)
@@ -70,7 +75,7 @@ From your build directory, run:
 ```bash
 ctest --verbose
 ```
-To list all registered tests (including the RingBuffer tests for doubles and TemperatureBuffer tests), execute:
+To list all registered tests (including tests for the RingBuffer, TemperatureBuffer, and TemperatureBufferDeque implementations), execute:
 ```bash
 ./temperature_tests --gtest_list_tests
 ```
@@ -92,32 +97,44 @@ temperature-messurement/
 ├── config/
 │   └── temperature_config.txt   # Configuration file with defaults
 ├── include/
-│   ├── defaults.h      # Default constants for configuration
+│   ├── defaults.h      # Default constants and default parameter values
 │   ├── config.h        # Configuration structure and loader prototype
 │   ├── ring_buffer.h   # Templated ring buffer implementation
-│   └── temperature_buffer.h   # Temperature buffer implementation updating min/max
+│   └── temperature_buffer.h       # Naive TemperatureBuffer implementation
+│       temperature_buffer_deque.h   # Fast (deque-based) TemperatureBuffer implementation
 ├── src/
-│   ├── main.cpp        # Main application using TemperatureBuffer and config loader
+│   ├── main.cpp        # Main application using TemperatureBuffer(s) and config loader
 │   └── config.cpp      # Implementation of configuration loader
 └── tests/
-    ├── test_ring_buffer.cpp    # Tests verifying ring buffer functionality (with ints and doubles)
-    └── test_temperature_buffer.cpp   # Tests verifying TemperatureBuffer's min/max tracking
+    ├── test_ring_buffer.cpp         # Tests verifying ring buffer functionality (with ints and doubles)
+    └── test_temperature_buffer.cpp  # Tests verifying TemperatureBuffer's min/max tracking
 ```
 
 ## Usage Example
 
-The `main.cpp` simulates `SIMULATION_VALUES` values of temperature measurements. For each day, it:
+The `main.cpp` simulates `simulationValues` temperature measurements. For each measurement, it:
 - Computes the seasonal base temperature using a sine function.
 - Adds a random walk step.
 - Clamps the result between `minTemp` and `maxTemp`.
-- Pushes the measurement into the `TemperatureBuffer`.
+- Pushes the measurement into either the naive or fast TemperatureBuffer (selectable via command-line options).
 
-Finally, it prints the number of stored measurements along with the current minimum and maximum temperatures.
+Command-line examples:
+- Default (naive, uses default config)
+  ```bash
+  ./temperature_measurement
+  ```
+- Use fast implementation with an alternative configuration file:
+  ```bash
+  ./temperature_measurement --fast --config /path/to/alternative_config.txt
+  ```
 
 ## Summary
 
 This project demonstrates:
-- Reading a configuration file with defaults.
-- Storing measurements in a ring buffer.
-- Naively tracking min/max via a TemperatureBuffer that updates on each write and rescans when needed.
-- Comprehensive testing of edge cases for both the ring buffer and temperature buffer.
+- Reading a configuration file with defaults centralized in `defaults.h`.
+- Storing measurements in a templated ring buffer.
+- Tracking min/max values in two ways: a naive method and a fast deque-based method.
+- Selection between implementations and configuration override via command-line parameters.
+- Comprehensive testing of edge cases for both the ring buffer and temperature buffer implementations.
+
+Happy coding!
