@@ -118,3 +118,36 @@ TEST(RingBufferTest, RepeatedValues)
     std::vector<int> expected = {5, 5, 5};
     EXPECT_EQ(data, expected);
 }
+
+TEST(RingBufferTest, DoubleValues)
+{
+    // Create a ring buffer with capacity 4 for doubles.
+    RingBuffer<double> buffer(4);
+
+    // Push some double values.
+    buffer.push(1.1);
+    buffer.push(2.2);
+    buffer.push(3.3);
+
+    // Check size and order.
+    EXPECT_EQ(buffer.size(), 3);
+    std::vector<double> data = buffer.data();
+    std::vector<double> expected = {1.1, 2.2, 3.3};
+    ASSERT_EQ(data.size(), expected.size());
+    for (size_t i = 0; i < data.size(); ++i)
+    {
+        EXPECT_DOUBLE_EQ(data[i], expected[i]);
+    }
+
+    // Now test overwriting: Push additional values to fill capacity and trigger overwrite.
+    buffer.push(4.4); // Buffer full now
+    buffer.push(5.5); // Overwrites the oldest element (1.1)
+    EXPECT_EQ(buffer.size(), 4);
+    data = buffer.data();
+    expected = {2.2, 3.3, 4.4, 5.5};
+    ASSERT_EQ(data.size(), expected.size());
+    for (size_t i = 0; i < data.size(); ++i)
+    {
+        EXPECT_DOUBLE_EQ(data[i], expected[i]);
+    }
+}
