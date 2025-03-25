@@ -12,4 +12,7 @@ namespace defaults {
 
     // Default drift factor
     inline constexpr double DRIFT_FACTOR = 0.1;
+    
+    // default ring buffer size
+    inline constexpr int BUFFER_SIZE = 50;
 }

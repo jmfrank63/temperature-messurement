@@ -40,8 +40,8 @@ find_package(GTest REQUIRED)
 # Create the test executable
 add_executable(temperature_tests
     tests/test_temperature_generator.cpp
+    tests/test_ring_buffer.cpp
     src/config.cpp
-    # ...add other .cpp files if needed for tests...
 )
 target_include_directories(temperature_tests PRIVATE include)
 target_link_libraries(temperature_tests PRIVATE GTest::gtest_main)

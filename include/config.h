@@ -10,6 +10,7 @@ struct Config {
     double minTemp;
     double maxTemp;
     double driftFactor;
+    int    bufferSize;
 };
 
 // Reads config from file 'filename'. On success, fills in cfg and returns true.

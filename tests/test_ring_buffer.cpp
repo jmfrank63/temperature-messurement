@@ -1,0 +1,120 @@
+#include <gtest/gtest.h>
+#include <vector>
+#include "ring_buffer.h"
+
+TEST(RingBufferTest, BasicPushAndData)
+{
+    // Create a ring buffer with capacity 3.
+    RingBuffer<int> buffer(3);
+    EXPECT_EQ(buffer.size(), 0);
+
+    // Push values and check size.
+    buffer.push(1);
+    buffer.push(2);
+    buffer.push(3);
+    EXPECT_EQ(buffer.size(), 3);
+
+    // The buffer should return values in oldest-to-newest order.
+    std::vector<int> data = buffer.data();
+    std::vector<int> expected = {1, 2, 3};
+    EXPECT_EQ(data, expected);
+}
+
+TEST(RingBufferTest, OverwriteOldest)
+{
+    // Create a ring buffer with capacity 3.
+    RingBuffer<int> buffer(3);
+
+    // Fill the buffer.
+    buffer.push(1);
+    buffer.push(2);
+    buffer.push(3);
+    // This push should overwrite the oldest element (1).
+    buffer.push(4);
+
+    EXPECT_EQ(buffer.size(), 3);
+
+    // Now the expected order is {2, 3, 4}.
+    std::vector<int> data = buffer.data();
+    std::vector<int> expected = {2, 3, 4};
+    EXPECT_EQ(data, expected);
+}
+
+TEST(RingBufferTest, PartialFill)
+{
+    // Create a ring buffer with capacity 5.
+    RingBuffer<int> buffer(5);
+
+    // Push fewer elements than the capacity.
+    buffer.push(10);
+    buffer.push(20);
+
+    EXPECT_EQ(buffer.size(), 2);
+
+    std::vector<int> data = buffer.data();
+    std::vector<int> expected = {10, 20};
+    EXPECT_EQ(data, expected);
+}
+
+// Edge case - Empty buffer should return an empty vector.
+TEST(RingBufferTest, EmptyBuffer)
+{
+    RingBuffer<int> buffer(4);
+    EXPECT_EQ(buffer.size(), 0);
+    std::vector<int> data = buffer.data();
+    std::vector<int> expected = {};
+    EXPECT_EQ(data, expected);
+}
+
+// Edge case - Multiple wraps: Push more than twice the capacity and verify the order.
+TEST(RingBufferTest, MultipleWraps)
+{
+    const int capacity = 4;
+    RingBuffer<int> buffer(capacity);
+
+    // Push 10 elements, so there are multiple wraps.
+    for (int i = 1; i <= 10; ++i)
+    {
+        buffer.push(i);
+    }
+    EXPECT_EQ(buffer.size(), capacity);
+
+    // The underlying buffer should contain the last 'capacity' values:
+    // for capacity 4 and 10 total pushes, expected order is {7, 8, 9, 10}
+    std::vector<int> data = buffer.data();
+    std::vector<int> expected = {7, 8, 9, 10};
+    EXPECT_EQ(data, expected);
+}
+
+// Additional edge case - Single element buffer.
+TEST(RingBufferTest, SingleElementBuffer)
+{
+    RingBuffer<int> buffer(1);
+    EXPECT_EQ(buffer.size(), 0);
+
+    // Only one element can be stored at a time.
+    buffer.push(1);
+    EXPECT_EQ(buffer.size(), 1);
+    std::vector<int> data1 = buffer.data();
+    std::vector<int> expected1 = {1};
+    EXPECT_EQ(data1, expected1);
+
+    buffer.push(2);
+    EXPECT_EQ(buffer.size(), 1);
+    std::vector<int> data2 = buffer.data();
+    std::vector<int> expected2 = {2};
+    EXPECT_EQ(data2, expected2);
+}
+
+// Additional edge case - Repeated values.
+TEST(RingBufferTest, RepeatedValues)
+{
+    RingBuffer<int> buffer(3);
+    buffer.push(5);
+    buffer.push(5);
+    buffer.push(5);
+    EXPECT_EQ(buffer.size(), 3);
+    std::vector<int> data = buffer.data();
+    std::vector<int> expected = {5, 5, 5};
+    EXPECT_EQ(data, expected);
+}
