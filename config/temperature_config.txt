@@ -4,5 +4,5 @@ daysInYear 365.0
 minTemp -20.0
 maxTemp 50.0
 driftFactor 0.1
-bufferSize 100
-
+bufferSize 10
+simulationValues 20

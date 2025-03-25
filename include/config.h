@@ -11,6 +11,7 @@ struct Config {
     double maxTemp;
     double driftFactor;
     int    bufferSize;
+    int    simulationValues;
 };
 
 // Reads config from file 'filename'. On success, fills in cfg and returns true.

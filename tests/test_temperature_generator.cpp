@@ -26,12 +26,12 @@ TEST(TemperatureGeneratorTest, BoundsAndAverage) {
 
     double currentTemp = cfg.baseOffset;
     double totalTemp   = 0.0;
-    int    numDays     = 100; // test with 100 iterations
+    int    numValues     = 100; // test with 100 iterations
 
-    for (int day = 0; day < numDays; ++day) {
+    for (int value = 0; value < numValues; ++value) {
         // Compute seasonal base
         double seasonalBase = cfg.baseOffset
-            + cfg.amplitude * std::sin((2.0 * M_PI * day) / cfg.daysInYear);
+            + cfg.amplitude * std::sin((2.0 * M_PI * value) / cfg.daysInYear);
 
         // Add random step
         currentTemp += generateRandomStep(engine);
@@ -55,6 +55,6 @@ TEST(TemperatureGeneratorTest, BoundsAndAverage) {
     }
 
     // Check that the average is near baseOffset
-    double averageTemp = totalTemp / numDays;
+    double averageTemp = totalTemp / numValues;
     EXPECT_NEAR(averageTemp, cfg.baseOffset, 7.0); // Allow some margin due to randomness
 }

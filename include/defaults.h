@@ -12,7 +12,14 @@ namespace defaults {
 
     // Default drift factor
     inline constexpr double DRIFT_FACTOR = 0.1;
-    
+
     // default ring buffer size
     inline constexpr int BUFFER_SIZE = 50;
+
+    // default simulation days
+    inline constexpr int SIMULATION_VALUES = 1000;
+
+    // Command line default values:
+    inline const std::string DEFAULT_CONFIG_RELATIVE = "../share/temperature_measurement/config/temperature_config.txt";
+    inline constexpr bool DEFAULT_USE_NAIVE = true;
 }

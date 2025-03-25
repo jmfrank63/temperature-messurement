@@ -106,7 +106,7 @@ temperature-messurement/
 
 ## Usage Example
 
-The `main.cpp` simulates 100 days of temperature measurements. For each day, it:
+The `main.cpp` simulates `SIMULATION_VALUES` values of temperature measurements. For each day, it:
 - Computes the seasonal base temperature using a sine function.
 - Adds a random walk step.
 - Clamps the result between `minTemp` and `maxTemp`.

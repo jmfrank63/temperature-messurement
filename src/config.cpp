@@ -22,6 +22,7 @@ bool loadConfig(const std::string &filename, Config &cfg)
     double maxTemp = defaults::MAX_TEMP;
     double driftFactor = defaults::DRIFT_FACTOR;
     int bufferSize = defaults::BUFFER_SIZE;
+    int simulationValues = defaults::SIMULATION_VALUES;
 
     std::string line;
     while (std::getline(file, line))
@@ -42,6 +43,7 @@ bool loadConfig(const std::string &filename, Config &cfg)
             else if (key == "maxTemp")       maxTemp     = value;
             else if (key == "driftFactor")   driftFactor = value;
             else if (key == "bufferSize")    bufferSize  = static_cast<int>(value);
+            else if (key == "simulationValues") simulationValues = static_cast<int>(value);
         }
     }
 
@@ -52,6 +54,7 @@ bool loadConfig(const std::string &filename, Config &cfg)
     cfg.maxTemp = maxTemp;
     cfg.driftFactor = driftFactor;
     cfg.bufferSize = bufferSize;
+    cfg.simulationValues = simulationValues;
 
     return true; // Successfully read at least some parameters
 }
