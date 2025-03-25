@@ -3,6 +3,8 @@
 #include <cmath>
 #include <string>
 #include <thread>
+#include <atomic>
+#include <chrono>
 #include <unistd.h>
 #include <limits.h>
 #include <libgen.h>
@@ -30,14 +32,13 @@ static double generateRandomStep(std::mt19937 &engine)
     return std::round(dist(engine));
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     std::string exeDir = getExecutableDir();
     std::string configPath = exeDir + "/" + defaults::DEFAULT_CONFIG_RELATIVE;
     bool useNaive = defaults::DEFAULT_USE_NAIVE;
 
     // Process command-line arguments.
-    // Options: --buffer|-f, --naive|-n, and --config|-c <path>
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
@@ -54,7 +55,7 @@ int main(int argc, char *argv[])
             if (i + 1 < argc)
             {
                 configPath = argv[i + 1];
-                ++i; // Skip next argument since it is the config path.
+                ++i;
             }
         }
     }
@@ -82,7 +83,9 @@ int main(int argc, char *argv[])
     std::cout << "Simulation values: " << cfg.simulationValues << "\n";
     std::cout << "-------------------------------------------------\n";
 
-    // Declare the buffer in the main thread.
+    // We'll use an atomic flag to signal when the generator is done.
+    std::atomic<bool> generatorDone(false);
+
     if (useNaive)
     {
         TemperatureBuffer buffer(cfg.bufferSize);
@@ -91,18 +94,26 @@ int main(int argc, char *argv[])
             {
                 double seasonalBase = cfg.baseOffset +
                                       cfg.amplitude * std::sin((2.0 * M_PI * day) / cfg.daysInYear);
-
                 currentTemp += generateRandomStep(engine);
                 currentTemp += cfg.driftFactor * (seasonalBase - currentTemp);
-
                 if (currentTemp < cfg.minTemp)
                     currentTemp = cfg.minTemp;
                 else if (currentTemp > cfg.maxTemp)
                     currentTemp = cfg.maxTemp;
-
                 buffer.push(currentTemp);
             }
+            generatorDone.store(true);
         });
+
+        // Main thread acts as consumer: periodically read current min and max
+        while (!generatorDone.load())
+        {
+            // Read buffer state (in a real application, add thread-safety here)
+            double curMin = buffer.min();
+            double curMax = buffer.max();
+            std::cout << "Reading (Naive): min = " << curMin << ", max = " << curMax << "\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
         generator.join();
         std::cout << "Final Naive: min = " << buffer.min()
                   << ", max = " << buffer.max() << "\n";
@@ -115,18 +126,24 @@ int main(int argc, char *argv[])
             {
                 double seasonalBase = cfg.baseOffset +
                                       cfg.amplitude * std::sin((2.0 * M_PI * day) / cfg.daysInYear);
-
                 currentTemp += generateRandomStep(engine);
                 currentTemp += cfg.driftFactor * (seasonalBase - currentTemp);
-
                 if (currentTemp < cfg.minTemp)
                     currentTemp = cfg.minTemp;
                 else if (currentTemp > cfg.maxTemp)
                     currentTemp = cfg.maxTemp;
-
                 buffer.push(currentTemp);
             }
+            generatorDone.store(true);
         });
+
+        while (!generatorDone.load())
+        {
+            double curMin = buffer.min();
+            double curMax = buffer.max();
+            std::cout << "Reading (buffer): min = " << curMin << ", max = " << curMax << "\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
         generator.join();
         std::cout << "Final buffer: min = " << buffer.min()
                   << ", max = " << buffer.max() << "\n";

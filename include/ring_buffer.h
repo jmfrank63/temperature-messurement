@@ -1,42 +1,68 @@
 #pragma once
 #include <vector>
+#include <atomic>
 
 template <typename T>
 class RingBuffer {
 public:
+    // capacity_: the fixed size of the circular buffer.
     explicit RingBuffer(size_t capacity)
-        : capacity_(capacity), index_(0), size_(0)
+        : capacity_(capacity), head_(0), tail_(0), count_(0)
     {
         buffer_.resize(capacity);
     }
 
+    // Producer: push a new value into the buffer.
+    // If the buffer is full, the oldest value is overwritten.
     void push(const T& value) {
-        buffer_[index_] = value;
-        index_ = (index_ + 1) % capacity_;
-        if (size_ < capacity_) {
-            ++size_;
+        size_t head = head_.load(std::memory_order_relaxed);
+        buffer_[head] = value;
+        size_t next = (head + 1) % capacity_;
+        head_.store(next, std::memory_order_release);
+
+        // If not full, then increment count.
+        size_t currentCount = count_.load(std::memory_order_relaxed);
+        if (currentCount < capacity_) {
+            count_.fetch_add(1, std::memory_order_release);
+        } else {
+            // Buffer is full; advance tail to overwrite oldest.
+            size_t currentTail = tail_.load(std::memory_order_relaxed);
+            tail_.store((currentTail + 1) % capacity_, std::memory_order_release);
         }
     }
 
-    std::vector<T> data() const {
+    // Returns a snapshot of the current buffer contents in order (oldest first).
+    std::vector<T> snapshot() const {
         std::vector<T> result;
-        result.reserve(size_);
-        size_t start = (size_ == capacity_) ? index_ : 0;
-        for (size_t i = 0; i < size_; ++i) {
-            result.push_back(buffer_[(start + i) % capacity_]);
+        size_t cnt = size();
+        result.reserve(cnt);
+        size_t tail = tail_.load(std::memory_order_acquire);
+        for (size_t i = 0; i < cnt; ++i) {
+            result.push_back(buffer_[(tail + i) % capacity_]);
         }
         return result;
     }
 
-    size_t size() const { return size_; }
-    size_t capacity() const { return capacity_; }
+    // For backwards compatibility with tests: data() returns snapshot.
+    std::vector<T> data() const {
+        return snapshot();
+    }
 
-    // New: Return the element that will be overwritten next.
-    const T& getOverwriteCandidate() const { return buffer_[index_]; }
+    // Returns the current number of elements in the buffer.
+    size_t size() const {
+        return count_.load(std::memory_order_acquire);
+    }
+
+    // Returns the element that will be overwritten next (i.e. the oldest element).
+    const T& getOverwriteCandidate() const {
+        size_t tail = tail_.load(std::memory_order_acquire);
+        return buffer_[tail];
+    }
 
 private:
     std::vector<T> buffer_;
-    size_t capacity_;
-    size_t index_;
-    size_t size_;
+    const size_t capacity_;
+    std::atomic<size_t> head_;   // Next write position.
+    std::atomic<size_t> tail_;   // Oldest element (next to be overwritten if full).
+    std::atomic<size_t> count_;  // Number of elements currently in the buffer.
 };

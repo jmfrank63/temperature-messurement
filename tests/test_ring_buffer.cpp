@@ -151,3 +151,51 @@ TEST(RingBufferTest, DoubleValues)
         EXPECT_DOUBLE_EQ(data[i], expected[i]);
     }
 }
+
+TEST(RingBufferExtraTest, OverwriteCandidate) {
+    // Create a ring buffer with capacity 3.
+    RingBuffer<int> buffer(3);
+
+    // Fill the buffer.
+    buffer.push(10);
+    buffer.push(20);
+    buffer.push(30);
+    // With the buffer full, the candidate to be overwritten (oldest) should be 10.
+    EXPECT_EQ(buffer.getOverwriteCandidate(), 10);
+
+    // Push a new value to trigger an overwrite.
+    buffer.push(40);  // This overwrites 10.
+    // Now, the oldest element should be updated to 20.
+    EXPECT_EQ(buffer.getOverwriteCandidate(), 20);
+
+    // Push one more value.
+    buffer.push(50); // Overwrites 20.
+    EXPECT_EQ(buffer.getOverwriteCandidate(), 30);
+}
+
+TEST(RingBufferExtraTest, SnapshotConsistency) {
+    // Create a ring buffer with capacity 5.
+    RingBuffer<int> buffer(5);
+
+    // Push some values.
+    for (int i = 1; i <= 3; ++i) {
+        buffer.push(i);
+    }
+    // Verify the snapshot returns the expected sequence.
+    std::vector<int> snap = buffer.snapshot();
+    std::vector<int> expected = {1, 2, 3};
+    EXPECT_EQ(snap, expected);
+
+    // Fill the buffer completely.
+    buffer.push(4);
+    buffer.push(5);   // Now buffer holds {1, 2, 3, 4, 5}
+    snap = buffer.snapshot();
+    expected = {1, 2, 3, 4, 5};
+    EXPECT_EQ(snap, expected);
+
+    // Push one more value to force an overwrite (overwriting 1).
+    buffer.push(6);   // Expected new order: {2, 3, 4, 5, 6}
+    snap = buffer.snapshot();
+    expected = {2, 3, 4, 5, 6};
+    EXPECT_EQ(snap, expected);
+}
