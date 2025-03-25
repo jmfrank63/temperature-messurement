@@ -43,3 +43,76 @@ TEST(TemperatureBufferDequeTest, MultipleWraps) {
         EXPECT_DOUBLE_EQ(data[i], expected[i]);
     }
 }
+
+TEST(TemperatureBufferDequeTest, PushPopOrdering) {
+    TemperatureBufferDeque buffer(4);
+
+    // Initially empty.
+    EXPECT_EQ(buffer.size(), 0);
+
+    // Push values.
+    buffer.push(10.0);
+    buffer.push(20.0);
+    buffer.push(30.0);
+    buffer.push(40.0);
+    EXPECT_EQ(buffer.size(), 4);
+
+    // Expected ordering: {10, 20, 30, 40}
+    std::vector<double> expected = {10.0, 20.0, 30.0, 40.0};
+    EXPECT_EQ(buffer.data(), expected);
+
+    // Pop one value; should be 10.0.
+    double value = 0.0;
+    EXPECT_TRUE(buffer.pop(value));
+    EXPECT_DOUBLE_EQ(value, 10.0);
+    EXPECT_EQ(buffer.size(), 3);
+
+    // Expected ordering now: {20, 30, 40}
+    expected = {20.0, 30.0, 40.0};
+    EXPECT_EQ(buffer.data(), expected);
+}
+
+TEST(TemperatureBufferDequeTest, WrapAround) {
+    TemperatureBufferDeque buffer(3);
+
+    buffer.push(1.0);
+    buffer.push(2.0);
+    buffer.push(3.0);
+    EXPECT_EQ(buffer.size(), 3);
+
+    // Next push triggers overwrite.
+    buffer.push(4.0);  // Overwrites the oldest element (1.0)
+    EXPECT_EQ(buffer.size(), 3);
+    // Expected ordering: {2.0, 3.0, 4.0}
+    std::vector<double> expected = {2.0, 3.0, 4.0};
+    EXPECT_EQ(buffer.data(), expected);
+}
+
+TEST(TemperatureBufferDequeTest, MinMaxAndPopEmpty) {
+    TemperatureBufferDeque buffer(5);
+
+    buffer.push(5.0);
+    buffer.push(3.0);
+    buffer.push(7.0);
+    buffer.push(2.0);
+    buffer.push(9.0);
+    // Buffer full: {5,3,7,2,9}
+    EXPECT_EQ(buffer.size(), 5);
+    EXPECT_DOUBLE_EQ(buffer.min(), 2.0);
+    EXPECT_DOUBLE_EQ(buffer.max(), 9.0);
+
+    // Pop one value; expect 5.0.
+    double value = 0.0;
+    EXPECT_TRUE(buffer.pop(value));
+    EXPECT_DOUBLE_EQ(value, 5.0);
+    EXPECT_EQ(buffer.size(), 4);
+    // Min and max remain (3,2,7,9) ==> min = 2.0, max = 9.0.
+    EXPECT_DOUBLE_EQ(buffer.min(), 2.0);
+    EXPECT_DOUBLE_EQ(buffer.max(), 9.0);
+
+    // Empty the buffer.
+    while(buffer.pop(value)) { }
+    EXPECT_EQ(buffer.size(), 0);
+    // Popping now should fail.
+    EXPECT_FALSE(buffer.pop(value));
+}

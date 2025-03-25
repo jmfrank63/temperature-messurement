@@ -44,6 +44,27 @@ public:
         minDeque_.push_back(value);
     }
 
+    // Pop the oldest value from the buffer.
+    // Returns true if a value was popped; false if the buffer is empty.
+    bool pop(double &value)
+    {
+        if (size_ == 0)
+            return false;
+        // Compute tail index: the oldest element is at:
+        size_t tail = (index_ + capacity_ - size_) % capacity_;
+        value = buffer_[tail];
+
+        // Update min deque if needed.
+        if (!minDeque_.empty() && minDeque_.front() == value)
+            minDeque_.pop_front();
+        // Update max deque if needed.
+        if (!maxDeque_.empty() && maxDeque_.front() == value)
+            maxDeque_.pop_front();
+
+        --size_;
+        return true;
+    }
+
     // Returns the current minimum.
     double min() const
     {

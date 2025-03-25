@@ -4,37 +4,49 @@
 #include <vector>
 #include <algorithm>
 
-class TemperatureBuffer {
+class TemperatureBuffer
+{
 public:
     explicit TemperatureBuffer(size_t capacity)
         : buffer_(capacity),
           capacity_(capacity),
           currentMin_(std::numeric_limits<double>::max()),
           currentMax_(std::numeric_limits<double>::lowest())
-    {}
+    {
+    }
 
     // On push, update min and max. If buffer is full and the value being overwritten
     // equals our current min or max, we recalc over the whole buffer.
-    void push(double value) {
+    void push(double value)
+    {
         bool isFull = (buffer_.size() == capacity_);
         double overwritten = 0.0;
-        if (isFull) {
+        if (isFull)
+        {
             overwritten = buffer_.getOverwriteCandidate();
         }
         buffer_.push(value);
 
-        if (!isFull) {
+        if (!isFull)
+        {
             // Buffer is not yet full: update min and max with the new value.
-            if (value < currentMin_) currentMin_ = value;
-            if (value > currentMax_) currentMax_ = value;
-        } else {
+            if (value < currentMin_)
+                currentMin_ = value;
+            if (value > currentMax_)
+                currentMax_ = value;
+        }
+        else
+        {
             // If the overwritten value equals current min or max, rescan.
-            if (overwritten == currentMin_ || overwritten == currentMax_) {
+            if (overwritten == currentMin_ || overwritten == currentMax_)
+            {
                 recalcMinMax();
             }
             // Also update for the new value.
-            if (value < currentMin_) currentMin_ = value;
-            if (value > currentMax_) currentMax_ = value;
+            if (value < currentMin_)
+                currentMin_ = value;
+            if (value > currentMax_)
+                currentMax_ = value;
         }
     }
 
@@ -43,6 +55,12 @@ public:
     std::vector<double> data() const { return buffer_.data(); }
     size_t size() const { return buffer_.size(); }
 
+    // Expose the pop() method from the underlying ring buffer.
+    bool pop(double &value)
+    {
+        return buffer_.pop(value);
+    }
+
 private:
     RingBuffer<double> buffer_;
     size_t capacity_;
@@ -50,9 +68,11 @@ private:
     double currentMax_;
 
     // Scan the entire buffer to recalc min and max.
-    void recalcMinMax() {
+    void recalcMinMax()
+    {
         std::vector<double> d = buffer_.data();
-        if (d.empty()) {
+        if (d.empty())
+        {
             currentMin_ = std::numeric_limits<double>::max();
             currentMax_ = std::numeric_limits<double>::lowest();
             return;

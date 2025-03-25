@@ -199,3 +199,93 @@ TEST(RingBufferExtraTest, SnapshotConsistency) {
     expected = {2, 3, 4, 5, 6};
     EXPECT_EQ(snap, expected);
 }
+
+// Test that popping from an empty buffer returns false.
+TEST(RingBufferPopTest, PopEmptyBuffer) {
+    RingBuffer<int> buffer(3);
+    int value;
+    EXPECT_FALSE(buffer.pop(value));
+    EXPECT_EQ(buffer.size(), 0);
+}
+
+// Test basic pop: Push several elements, pop them, and verify order and size updates.
+TEST(RingBufferPopTest, BasicPop) {
+    RingBuffer<int> buffer(3);
+    buffer.push(1);
+    buffer.push(2);
+    buffer.push(3);
+    EXPECT_EQ(buffer.size(), 3);
+
+    int value = 0;
+    EXPECT_TRUE(buffer.pop(value));
+    EXPECT_EQ(value, 1);
+    EXPECT_EQ(buffer.size(), 2);
+
+    EXPECT_TRUE(buffer.pop(value));
+    EXPECT_EQ(value, 2);
+    EXPECT_EQ(buffer.size(), 1);
+
+    EXPECT_TRUE(buffer.pop(value));
+    EXPECT_EQ(value, 3);
+    EXPECT_EQ(buffer.size(), 0);
+
+    // Now the buffer should be empty.
+    EXPECT_FALSE(buffer.pop(value));
+}
+
+// Test popping after overwriting (wrap-around behavior).
+TEST(RingBufferPopTest, PopAfterOverwrite) {
+    RingBuffer<int> buffer(3);
+    buffer.push(1);
+    buffer.push(2);
+    buffer.push(3);
+    // Buffer is full; next push overwrites the oldest element (1).
+    buffer.push(4);
+    EXPECT_EQ(buffer.size(), 3);
+
+    int value = 0;
+    // The oldest element now should be 2.
+    EXPECT_TRUE(buffer.pop(value));
+    EXPECT_EQ(value, 2);
+    EXPECT_EQ(buffer.size(), 2);
+
+    // Next pop should yield 3.
+    EXPECT_TRUE(buffer.pop(value));
+    EXPECT_EQ(value, 3);
+    EXPECT_EQ(buffer.size(), 1);
+
+    // Final pop should yield the overwritten element 4.
+    EXPECT_TRUE(buffer.pop(value));
+    EXPECT_EQ(value, 4);
+    EXPECT_EQ(buffer.size(), 0);
+}
+
+// Test mixing pushes and pops to simulate interleaved consumer-producer operations.
+TEST(RingBufferPopTest, MixedOperations) {
+    RingBuffer<int> buffer(4);
+    // Push some values.
+    buffer.push(10);
+    buffer.push(20);
+    EXPECT_EQ(buffer.size(), 2);
+
+    int value = 0;
+    // Pop one value.
+    EXPECT_TRUE(buffer.pop(value));
+    EXPECT_EQ(value, 10);
+    EXPECT_EQ(buffer.size(), 1);
+
+    // Push more values.
+    buffer.push(30);
+    buffer.push(40);
+    EXPECT_EQ(buffer.size(), 3);
+
+    // Pop all remaining values.
+    std::vector<int> popped;
+    while(buffer.pop(value)) {
+        popped.push_back(value);
+    }
+
+    std::vector<int> expected = {20, 30, 40};
+    EXPECT_EQ(popped, expected);
+    EXPECT_EQ(buffer.size(), 0);
+}

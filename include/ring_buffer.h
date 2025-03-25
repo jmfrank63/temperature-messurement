@@ -20,15 +20,27 @@ public:
         size_t next = (head + 1) % capacity_;
         head_.store(next, std::memory_order_release);
 
-        // If not full, then increment count.
+        // If not full, increment count; otherwise advance tail.
         size_t currentCount = count_.load(std::memory_order_relaxed);
         if (currentCount < capacity_) {
             count_.fetch_add(1, std::memory_order_release);
         } else {
-            // Buffer is full; advance tail to overwrite oldest.
             size_t currentTail = tail_.load(std::memory_order_relaxed);
             tail_.store((currentTail + 1) % capacity_, std::memory_order_release);
         }
+    }
+
+    // Consumer: attempts to pop the oldest value.
+    // Returns true if a value was popped.
+    bool pop(T &value) {
+        size_t currentCount = count_.load(std::memory_order_acquire);
+        if (currentCount == 0)
+            return false; // Buffer empty.
+        size_t tail = tail_.load(std::memory_order_relaxed);
+        value = buffer_[tail];
+        tail_.store((tail + 1) % capacity_, std::memory_order_release);
+        count_.fetch_sub(1, std::memory_order_release);
+        return true;
     }
 
     // Returns a snapshot of the current buffer contents in order (oldest first).
@@ -43,17 +55,15 @@ public:
         return result;
     }
 
-    // For backwards compatibility with tests: data() returns snapshot.
-    std::vector<T> data() const {
-        return snapshot();
-    }
+    // For backwards compatibility with tests.
+    std::vector<T> data() const { return snapshot(); }
 
     // Returns the current number of elements in the buffer.
     size_t size() const {
         return count_.load(std::memory_order_acquire);
     }
 
-    // Returns the element that will be overwritten next (i.e. the oldest element).
+    // Returns the element that will be overwritten next (oldest element).
     const T& getOverwriteCandidate() const {
         size_t tail = tail_.load(std::memory_order_acquire);
         return buffer_[tail];
@@ -63,6 +73,6 @@ private:
     std::vector<T> buffer_;
     const size_t capacity_;
     std::atomic<size_t> head_;   // Next write position.
-    std::atomic<size_t> tail_;   // Oldest element (next to be overwritten if full).
-    std::atomic<size_t> count_;  // Number of elements currently in the buffer.
+    std::atomic<size_t> tail_;   // Oldest element (next to be popped).
+    std::atomic<size_t> count_;  // Current number of elements.
 };

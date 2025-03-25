@@ -101,3 +101,27 @@ TEST(TemperatureBufferTest, NegativeAndMixedValues)
     EXPECT_DOUBLE_EQ(buffer.min(), expectedMin);
     EXPECT_DOUBLE_EQ(buffer.max(), expectedMax);
 }
+
+TEST(TemperatureBufferTest, PopFunctionality) {
+    TemperatureBuffer tBuffer(4);
+    tBuffer.push(20.0);
+    tBuffer.push(25.0);
+    tBuffer.push(22.0);
+    EXPECT_EQ(tBuffer.size(), 3);
+
+    double value = 0.0;
+    EXPECT_TRUE(tBuffer.pop(value));
+    EXPECT_DOUBLE_EQ(value, 20.0);
+    EXPECT_EQ(tBuffer.size(), 2);
+
+    // Remaining buffer should be {25,22}.
+    std::vector<double> expected = {25.0, 22.0};
+    EXPECT_EQ(tBuffer.data(), expected);
+}
+
+TEST(TemperatureBufferTest, PopEmptyBuffer) {
+    TemperatureBuffer tBuffer(3);
+    double value = 0.0;
+    EXPECT_FALSE(tBuffer.pop(value));
+    EXPECT_EQ(tBuffer.size(), 0);
+}

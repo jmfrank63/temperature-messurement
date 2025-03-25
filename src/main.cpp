@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <random>
 #include <cmath>
 #include <string>
@@ -12,7 +13,7 @@
 #include "config.h"
 #include "defaults.h"
 #include "temperature_buffer.h"       // Naive implementation
-#include "temperature_buffer_deque.h"   // buffer (deque-based) implementation
+#include "temperature_buffer_deque.h" // buffer (deque-based) implementation
 
 // Returns the directory containing the running executable.
 std::string getExecutableDir()
@@ -32,7 +33,7 @@ static double generateRandomStep(std::mt19937 &engine)
     return std::round(dist(engine));
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     std::string exeDir = getExecutableDir();
     std::string configPath = exeDir + "/" + defaults::DEFAULT_CONFIG_RELATIVE;
@@ -63,13 +64,13 @@ int main(int argc, char* argv[])
     Config cfg;
     if (!loadConfig(configPath, cfg))
     {
-        cfg.baseOffset       = defaults::BASE_OFFSET;
-        cfg.amplitude        = defaults::AMPLITUDE;
-        cfg.daysInYear       = defaults::DAYS_IN_YEAR;
-        cfg.minTemp          = defaults::MIN_TEMP;
-        cfg.maxTemp          = defaults::MAX_TEMP;
-        cfg.driftFactor      = defaults::DRIFT_FACTOR;
-        cfg.bufferSize       = defaults::BUFFER_SIZE;
+        cfg.baseOffset = defaults::BASE_OFFSET;
+        cfg.amplitude = defaults::AMPLITUDE;
+        cfg.daysInYear = defaults::DAYS_IN_YEAR;
+        cfg.minTemp = defaults::MIN_TEMP;
+        cfg.maxTemp = defaults::MAX_TEMP;
+        cfg.driftFactor = defaults::DRIFT_FACTOR;
+        cfg.bufferSize = defaults::BUFFER_SIZE;
         cfg.simulationValues = defaults::SIMULATION_VALUES;
     }
 
@@ -89,7 +90,8 @@ int main(int argc, char* argv[])
     if (useNaive)
     {
         TemperatureBuffer buffer(cfg.bufferSize);
-        std::thread generator([&]() {
+        std::thread generator([&]()
+                              {
             for (int day = 0; day < cfg.simulationValues; ++day)
             {
                 double seasonalBase = cfg.baseOffset +
@@ -102,30 +104,44 @@ int main(int argc, char* argv[])
                     currentTemp = cfg.maxTemp;
                 buffer.push(currentTemp);
             }
-            generatorDone.store(true);
-        });
+            generatorDone.store(true); });
 
-        // Main thread acts as consumer: periodically read current min and max
-        while (!generatorDone.load())
+        // Open output file for streaming values.
+        std::ofstream outFile("temperature_output.txt");
+        if (!outFile.is_open())
         {
-            // Read buffer state (in a real application, add thread-safety here)
-            double curMin = buffer.min();
-            double curMax = buffer.max();
-            std::cout << "Reading (Naive): min = " << curMin << ", max = " << curMax << "\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            std::cerr << "Failed to open output file.\n";
+            return 1;
+        }
+
+        double value;
+        // Consumer loop: while the generator is running or there are values in the buffer.
+        while (!generatorDone.load() || buffer.size() > 0)
+        {
+            // Pop and write values if available.
+            if (buffer.pop(value))
+            {
+                outFile << value << "\n";
+            }
+            else
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
         }
         generator.join();
+        outFile.close();
         std::cout << "Final Naive: min = " << buffer.min()
                   << ", max = " << buffer.max() << "\n";
     }
     else
     {
         TemperatureBufferDeque buffer(cfg.bufferSize);
-        std::thread generator([&]() {
+        std::thread generator([&]()
+                              {
             for (int day = 0; day < cfg.simulationValues; ++day)
             {
                 double seasonalBase = cfg.baseOffset +
-                                      cfg.amplitude * std::sin((2.0 * M_PI * day) / cfg.daysInYear);
+                    cfg.amplitude * std::sin((2.0 * M_PI * day) / cfg.daysInYear);
                 currentTemp += generateRandomStep(engine);
                 currentTemp += cfg.driftFactor * (seasonalBase - currentTemp);
                 if (currentTemp < cfg.minTemp)
@@ -134,17 +150,31 @@ int main(int argc, char* argv[])
                     currentTemp = cfg.maxTemp;
                 buffer.push(currentTemp);
             }
-            generatorDone.store(true);
-        });
+            generatorDone.store(true); });
 
-        while (!generatorDone.load())
+        // Open output file for streaming values.
+        std::ofstream outFile("temperature_output.txt");
+        if (!outFile.is_open())
         {
-            double curMin = buffer.min();
-            double curMax = buffer.max();
-            std::cout << "Reading (buffer): min = " << curMin << ", max = " << curMax << "\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            std::cerr << "Failed to open output file.\n";
+            return 1;
+        }
+
+        double value;
+        // Consumer loop: while the generator is running or there are values in the buffer.
+        while (!generatorDone.load() || buffer.size() > 0)
+        {
+            if (buffer.pop(value))
+            {
+                outFile << value << "\n";
+            }
+            else
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
         }
         generator.join();
+        outFile.close();
         std::cout << "Final buffer: min = " << buffer.min()
                   << ", max = " << buffer.max() << "\n";
     }
