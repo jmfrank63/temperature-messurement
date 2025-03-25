@@ -2,7 +2,7 @@
 
 This project demonstrates how to capture a sequence of temperature measurements, store them in a ring buffer, and track the minimum and maximum temperatures. Two min/max tracking implementations are provided:
 - A **naive** method that updates min/max on each write and rescans the buffer on overwrite.
-- A **fast** deque-based approach that maintains auxiliary deques for constant-amortized time lookups.
+- A **buffer** deque-based approach that maintains auxiliary deques for constant-amortized time lookups.
 
 ## Features
 
@@ -35,13 +35,13 @@ This project demonstrates how to capture a sequence of temperature measurements,
   - **Naive Implementation:**
     Uses a TemperatureBuffer that updates min/max on each write and rescans the buffer when the overwritten element is the current extreme.
 
-  - **Fast Implementation:**
+  - **buffer Implementation:**
     Uses a TemperatureBufferDeque that maintains two deques (for minimum and maximum) so that each update is done in amortized O(1) time.
 
 - **Command Line Parameters:**
   In addition to configuration file parameters, you can control the program behavior via command-line options:
   - **`--config <path>` or `-c <path>`**: Overrides the default configuration file location.
-  - **`--fast` or `-f`**: Uses the fast (deque-based) min/max tracking implementation.
+  - **`--buffer` or `-f`**: Uses the buffer (deque-based) min/max tracking implementation.
   - **`--naive` or `-n`**: Uses the naive min/max tracking implementation.
 
 ## Build and Run
@@ -101,7 +101,7 @@ temperature-messurement/
 │   ├── config.h        # Configuration structure and loader prototype
 │   ├── ring_buffer.h   # Templated ring buffer implementation
 │   └── temperature_buffer.h       # Naive TemperatureBuffer implementation
-│       temperature_buffer_deque.h   # Fast (deque-based) TemperatureBuffer implementation
+│       temperature_buffer_deque.h   # buffer (deque-based) TemperatureBuffer implementation
 ├── src/
 │   ├── main.cpp        # Main application using TemperatureBuffer(s) and config loader
 │   └── config.cpp      # Implementation of configuration loader
@@ -116,16 +116,16 @@ The `main.cpp` simulates `simulationValues` temperature measurements. For each m
 - Computes the seasonal base temperature using a sine function.
 - Adds a random walk step.
 - Clamps the result between `minTemp` and `maxTemp`.
-- Pushes the measurement into either the naive or fast TemperatureBuffer (selectable via command-line options).
+- Pushes the measurement into either the naive or buffer TemperatureBuffer (selectable via command-line options).
 
 Command-line examples:
 - Default (naive, uses default config)
   ```bash
   ./temperature_measurement
   ```
-- Use fast implementation with an alternative configuration file:
+- Use buffer implementation with an alternative configuration file:
   ```bash
-  ./temperature_measurement --fast --config /path/to/alternative_config.txt
+  ./temperature_measurement --buffer --config /path/to/alternative_config.txt
   ```
 
 ## Summary
@@ -133,8 +133,6 @@ Command-line examples:
 This project demonstrates:
 - Reading a configuration file with defaults centralized in `defaults.h`.
 - Storing measurements in a templated ring buffer.
-- Tracking min/max values in two ways: a naive method and a fast deque-based method.
+- Tracking min/max values in two ways: a naive method and a buffer deque-based method.
 - Selection between implementations and configuration override via command-line parameters.
 - Comprehensive testing of edge cases for both the ring buffer and temperature buffer implementations.
-
-Happy coding!

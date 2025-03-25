@@ -1,15 +1,16 @@
 #include <iostream>
 #include <random>
 #include <cmath>
+#include <string>
+#include <thread>
 #include <unistd.h>
 #include <limits.h>
 #include <libgen.h>
-#include <string>
 
 #include "config.h"
 #include "defaults.h"
 #include "temperature_buffer.h"       // Naive implementation
-#include "temperature_buffer_deque.h" // Fast implementation
+#include "temperature_buffer_deque.h"   // buffer (deque-based) implementation
 
 // Returns the directory containing the running executable.
 std::string getExecutableDir()
@@ -36,11 +37,11 @@ int main(int argc, char *argv[])
     bool useNaive = defaults::DEFAULT_USE_NAIVE;
 
     // Process command-line arguments.
-    // Options: --fast|-f, --naive|-n, and --config|-c <path>
+    // Options: --buffer|-f, --naive|-n, and --config|-c <path>
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
-        if (arg == "--fast" || arg == "-f")
+        if (arg == "--buffer" || arg == "-b")
         {
             useNaive = false;
         }
@@ -61,64 +62,74 @@ int main(int argc, char *argv[])
     Config cfg;
     if (!loadConfig(configPath, cfg))
     {
-        cfg.baseOffset = defaults::BASE_OFFSET;
-        cfg.amplitude = defaults::AMPLITUDE;
-        cfg.daysInYear = defaults::DAYS_IN_YEAR;
-        cfg.minTemp = defaults::MIN_TEMP;
-        cfg.maxTemp = defaults::MAX_TEMP;
-        cfg.driftFactor = defaults::DRIFT_FACTOR;
-        cfg.bufferSize = defaults::BUFFER_SIZE;
+        cfg.baseOffset       = defaults::BASE_OFFSET;
+        cfg.amplitude        = defaults::AMPLITUDE;
+        cfg.daysInYear       = defaults::DAYS_IN_YEAR;
+        cfg.minTemp          = defaults::MIN_TEMP;
+        cfg.maxTemp          = defaults::MAX_TEMP;
+        cfg.driftFactor      = defaults::DRIFT_FACTOR;
+        cfg.bufferSize       = defaults::BUFFER_SIZE;
         cfg.simulationValues = defaults::SIMULATION_VALUES;
     }
 
     std::random_device rd;
     std::mt19937 engine(rd());
-
     double currentTemp = cfg.baseOffset;
 
-    // Pointers to a common interface.
-    // Here we use lambda functions for demonstration.
-    auto pushValue = [&](double value)
-    {
-        if (useNaive)
-        {
-            // Using the naive TemperatureBuffer.
-            static TemperatureBuffer naiveBuffer(cfg.bufferSize);
-            naiveBuffer.push(value);
-            // For demonstration, print min and max.
-            std::cout << "Naive: min = " << naiveBuffer.min() << ", max = " << naiveBuffer.max() << "\n";
-        }
-        else
-        {
-            // Using the fast deque-based TemperatureBuffer.
-            static TemperatureBufferDeque fastBuffer(cfg.bufferSize);
-            fastBuffer.push(value);
-            std::cout << "Fast: min = " << fastBuffer.min() << ", max = " << fastBuffer.max() << "\n";
-        }
-    };
-
-    std::cout << "Temperature Generator with " << (useNaive ? "Naive" : "Fast") << " min/max tracking\n";
-
+    std::cout << "Temperature Generator with " << (useNaive ? "Naive" : "buffer")
+              << " min/max tracking\n";
+    std::cout << "Using config file: " << configPath << "\n";
+    std::cout << "Simulation values: " << cfg.simulationValues << "\n";
     std::cout << "-------------------------------------------------\n";
-    std::cout << "Simulation days: " << cfg.simulationValues << "\n";
-    for (int value = 0; value < cfg.simulationValues; ++value)
+
+    // Declare the buffer in the main thread.
+    if (useNaive)
     {
-        double seasonalBase = cfg.baseOffset +
-                              cfg.amplitude * std::sin((2.0 * M_PI * value) / cfg.daysInYear);
+        TemperatureBuffer buffer(cfg.bufferSize);
+        std::thread generator([&]() {
+            for (int day = 0; day < cfg.simulationValues; ++day)
+            {
+                double seasonalBase = cfg.baseOffset +
+                                      cfg.amplitude * std::sin((2.0 * M_PI * day) / cfg.daysInYear);
 
-        currentTemp += generateRandomStep(engine);
-        currentTemp += cfg.driftFactor * (seasonalBase - currentTemp);
+                currentTemp += generateRandomStep(engine);
+                currentTemp += cfg.driftFactor * (seasonalBase - currentTemp);
 
-        if (currentTemp < cfg.minTemp)
-            currentTemp = cfg.minTemp;
-        else if (currentTemp > cfg.maxTemp)
-            currentTemp = cfg.maxTemp;
+                if (currentTemp < cfg.minTemp)
+                    currentTemp = cfg.minTemp;
+                else if (currentTemp > cfg.maxTemp)
+                    currentTemp = cfg.maxTemp;
 
-        // Push the measurement into the selected buffer.
-        pushValue(currentTemp);
+                buffer.push(currentTemp);
+            }
+        });
+        generator.join();
+        std::cout << "Final Naive: min = " << buffer.min()
+                  << ", max = " << buffer.max() << "\n";
+    }
+    else
+    {
+        TemperatureBufferDeque buffer(cfg.bufferSize);
+        std::thread generator([&]() {
+            for (int day = 0; day < cfg.simulationValues; ++day)
+            {
+                double seasonalBase = cfg.baseOffset +
+                                      cfg.amplitude * std::sin((2.0 * M_PI * day) / cfg.daysInYear);
 
-        std::cout << "Value " << (value + 1)
-                  << ": " << currentTemp << " °C\n";
+                currentTemp += generateRandomStep(engine);
+                currentTemp += cfg.driftFactor * (seasonalBase - currentTemp);
+
+                if (currentTemp < cfg.minTemp)
+                    currentTemp = cfg.minTemp;
+                else if (currentTemp > cfg.maxTemp)
+                    currentTemp = cfg.maxTemp;
+
+                buffer.push(currentTemp);
+            }
+        });
+        generator.join();
+        std::cout << "Final buffer: min = " << buffer.min()
+                  << ", max = " << buffer.max() << "\n";
     }
 
     return 0;
