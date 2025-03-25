@@ -77,16 +77,17 @@ public:
         return maxDeque_.empty() ? std::numeric_limits<double>::lowest() : maxDeque_.front();
     }
 
-    // Optionally returns the current stored data, in insertion order.
-    std::vector<double> data() const
-    {
-        std::vector<double> result;
-        result.reserve(size_);
-        size_t start = (size_ == capacity_) ? index_ : 0;
-        for (size_t i = 0; i < size_; ++i)
-            result.push_back(buffer_[(start + i) % capacity_]);
-        return result;
-    }
+       // Returns the current stored data in FIFO order.
+       std::vector<double> data() const
+       {
+           std::vector<double> result;
+           result.reserve(size_);
+           // Compute tail index the same way as in pop().
+           size_t tail = (index_ + capacity_ - size_) % capacity_;
+           for (size_t i = 0; i < size_; ++i)
+               result.push_back(buffer_[(tail + i) % capacity_]);
+           return result;
+       }
 
     size_t size() const { return size_; }
     size_t capacity() const { return capacity_; }
