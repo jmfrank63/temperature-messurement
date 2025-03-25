@@ -41,6 +41,7 @@ find_package(GTest REQUIRED)
 add_executable(temperature_tests
     tests/test_temperature_generator.cpp
     tests/test_ring_buffer.cpp
+    tests/test_temperature_buffer.cpp
     src/config.cpp
 )
 target_include_directories(temperature_tests PRIVATE include)

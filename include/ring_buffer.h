@@ -10,7 +10,6 @@ public:
         buffer_.resize(capacity);
     }
 
-    // Adds a new element to the ring buffer.
     void push(const T& value) {
         buffer_[index_] = value;
         index_ = (index_ + 1) % capacity_;
@@ -19,7 +18,6 @@ public:
         }
     }
 
-    // Returns the current elements in oldest-to-newest order.
     std::vector<T> data() const {
         std::vector<T> result;
         result.reserve(size_);
@@ -32,6 +30,9 @@ public:
 
     size_t size() const { return size_; }
     size_t capacity() const { return capacity_; }
+
+    // New: Return the element that will be overwritten next.
+    const T& getOverwriteCandidate() const { return buffer_[index_]; }
 
 private:
     std::vector<T> buffer_;
